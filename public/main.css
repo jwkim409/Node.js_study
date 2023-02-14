@@ -1,0 +1,8 @@
+/* css 파일은 static이라 public이라는 폴더에 저장하는 게 관습 */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR&display=swap');
+
+
+body{
+   font-family: 'Noto Sans KR', sans-serif;
+}
