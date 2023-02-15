@@ -106,3 +106,82 @@ app.get('/edit/:id', function(요청, 응답){
       응답.render('edit.ejs', { post : 결과 }) // 이 데이터를 post라는 이름으로 이용할 수 있음
    })
 })
+
+// 누가 /edit 경로로 put 요청 함. form에 담긴 제목, 날짜 데이터 가지고  db.collection에 업데이트 함.
+app.put('/edit', function(요청, 응답){
+   db.collection('post').updateOne({ _id : parseInt(요청.body.id) }, { $set : { 제목 : 요청.body.title, 날짜 : 요청.body.date}}, function(에러, 결과){
+      console.log('수정완료')
+      응답.redirect('/list')
+   })
+});
+
+
+
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+const session = require('express-session');
+
+app.use(session({secret : '비밀코드', resave : true, saveUninitialized: false}));
+app.use(passport.initialize());
+app.use(passport.session()); 
+
+
+// 로그인 페이지
+app.get('/login', function(요청, 응답){
+  응답.render('login.ejs') 
+});
+
+// 로그인을 하면.. 아이디 비번 검사
+app.post('/login', passport.authenticate('local', {
+   failureRedirect : '/fail'  // 실패하면 이 경로로 보내주세요
+}), function(요청, 응답){
+   응답.redirect('/')  // 성공하면 어떤 사람을 이 경로로 보내주세요~
+});
+
+// 미들웨어 쓰는 법 (마이페이지)
+app.get('/mypage', 로그인했니, function(요청, 응답){
+   console.log(요청.user)  // 마이페이지 접속할 때마다 유저 데이터 뜸
+   응답.render('mypage.ejs', { 사용자 : 요청.user })
+})
+
+// 미들웨어 만드는 법 (마이페이지 접속 전 실행할 미들웨어)
+function 로그인했니(요청, 응답, next){
+   if(요청.user){
+      next()   // next() 통과
+   } else{
+      응답.send('로그인 안 하셨네요')
+   }
+}
+
+
+// 로컬스트레티지 방법(복붙)
+passport.use(new LocalStrategy({
+   usernameField: 'id',
+   passwordField: 'pw',
+   session: true,
+   passReqToCallback: false,
+ }, function (입력한아이디, 입력한비번, done) {
+   //console.log(입력한아이디, 입력한비번);
+   db.collection('login').findOne({ id: 입력한아이디 }, function (에러, 결과) {
+     if (에러) return done(에러)
+     if (!결과) return done(null, false, { message: '존재하지않는 아이디요' })  // DB에 아이디가 없으면 이거 실행
+     if (입력한비번 == 결과.pw) {
+       return done(null, 결과)
+     } else {
+       return done(null, false, { message: '비번틀렸어요' })
+     }
+   })
+ }));
+// 152줄 -> done(서버에러, 성공사용자DB데이터, 에러메시지)
+
+// 로그인 성공 -> 세션정보 만듦 -> 마이페이지 방문 시 세션검사
+// 세션 저장시키는 코드
+passport.serializeUser(function (user, done) {
+   done(null, user.id)
+ });
+ 
+ passport.deserializeUser(function (아이디, done) {  // 위에있는 user.id = 아이디
+   db.collection('login').findOne({ id: 아이디 }, function (에러, 결과){
+   done(null, {결과})
+ })
+});
