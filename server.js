@@ -13,6 +13,9 @@ const MongoClient = require('mongodb').MongoClient;
 const methodOverride = require('method-override')
 app.use(methodOverride('_method'))
 
+// 환경변수 사용을 위한 라이브러리
+require('dotenv').config()
+
 // EJS
 app.set('view engine', 'ejs');
 
@@ -20,18 +23,23 @@ app.set('view engine', 'ejs');
 app.use('/public', express.static('public'));
 
 
+// 환경변수
+var db;
+  MongoClient.connect(process.env.DB_URL, function(err, client){
+  if (err) return console.log(err)
+  db = client.db('todoapp');
+//   db.collection('post').insertOne( {이름 : 'Kim', 나이 : 22, _id : 20}, function(에러, 결과){
+//    console.log('저장완료');
+// })
+}) 
 
-var db;  //  변수 하나 필요
-MongoClient.connect('mongodb+srv://jwkim409:qwerty123@cluster0.bihqwt6.mongodb.net/todoapp?retryWrites=true&w=majority', function(에러, client){
-   //연결되면 할 일
-   if (에러) return console.log(에러);
+// var db;  //  변수 하나 필요
+// MongoClient.connect('mongodb+srv://jwkim409:qwerty123@cluster0.bihqwt6.mongodb.net/todoapp?retryWrites=true&w=majority', function(에러, client){
+//    //연결되면 할 일
+//    if (에러) return console.log(에러);
 
-   db = client.db('todoapp');  // todoapp이라는 database(폴더)에 연결좀요
+//    db = client.db('todoapp');  // todoapp이라는 database(폴더)에 연결좀요
 
-   db.collection('post').insertOne( {이름 : 'Kim', 나이 : 22, _id : 01}, function(에러, 결과){
-      console.log('저장완료');
-   });
- })
  
  
 
@@ -185,3 +193,25 @@ passport.serializeUser(function (user, done) {
    done(null, {결과})
  })
 });
+
+
+// 서버에서 query string 꺼내는 법
+app.get('/search', (요청, 응답) => {
+   var 검색조건 = [
+      {
+        $search: {
+          index: 'titleSearch',
+          text: {
+            query: 요청.query.value,  // 검색어 입력하는 항목
+            path: '제목'  // 제목날짜 둘다 찾고 싶으면 ['제목', '날짜']
+          }
+        }
+      },
+      { $sort : { _id : 1 }}  // aggreate는 검색조건들 줄 수 있음.
+    ] 
+   db.collection('post').aggregate(검색조건).toArray((에러, 결과)=>{
+      console.log(결과)  // 결과 잘 출력해줌
+      응답.render('search.ejs', {posts : 결과})  // post라는 이름으로 결과 보내기
+   })
+})
+// text index 문제점: 띄어쓰기 기준으로 단어 저장함;;
