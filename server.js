@@ -13,6 +13,14 @@ const MongoClient = require('mongodb').MongoClient;
 const methodOverride = require('method-override')
 app.use(methodOverride('_method'))
 
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+const session = require('express-session');
+
+app.use(session({secret : '비밀코드', resave : true, saveUninitialized: false}));
+app.use(passport.initialize());
+app.use(passport.session()); 
+
 // 환경변수 사용을 위한 라이브러리
 require('dotenv').config()
 
@@ -64,21 +72,6 @@ app.get('/', function(요청, 응답) {
  });
 
 
-app.post('/add', function(요청, 응답){
-   db.collection('counter').findOne({ name : '게시물갯수'}, function(에러, 결과){
-      var 총게시물갯수 = 결과.totalPost;
-   
-   db.collection('post').insertOne({ _id : 총게시물갯수 + 1, 제목 : 요청.body.title, 날짜 : 요청.body.date }, function(에러, 결과){
-      console.log('저장완료');
-
-   db.collection('counter').updateOne({name : '게시물갯수'}, { $inc : {totalPost:1} }, function(에러, 결과){
-      if(에러){return console.log(에러)}
-      응답.send('전송완료');
-   })
-   })
-   })
-})
-
 app.get('/list', function(요청, 응답){
 
    db.collection('post').find().toArray(function(에러, 결과){    // 모든 데이터 가져오기 문법
@@ -86,16 +79,6 @@ app.get('/list', function(요청, 응답){
       응답.render('list.ejs', { posts : 결과 });  // 찾은 결 ejs 파일에 집어넣어주세요
    });
 });
-
-app.delete('/delete', function(요청, 응답){
-   console.log(요청.body)
-   요청.body._id = parseInt(요청.body._id);
-   // 요청.body에 담긴 게시물 번호에 따라 DB에서 게시물 삭제
-   db.collection('post').deleteOne(요청.body, function(에러, 결과){
-      console.log('삭제완료');
-      응답.status(200).send({ message : '성공했습니다'});
-   })
-})
 
 
 // 게시물마다 상세페이지 만들기
@@ -124,16 +107,6 @@ app.put('/edit', function(요청, 응답){
 });
 
 
-
-const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy;
-const session = require('express-session');
-
-app.use(session({secret : '비밀코드', resave : true, saveUninitialized: false}));
-app.use(passport.initialize());
-app.use(passport.session()); 
-
-
 // 로그인 페이지
 app.get('/login', function(요청, 응답){
   응답.render('login.ejs') 
@@ -147,10 +120,10 @@ app.post('/login', passport.authenticate('local', {
 });
 
 // 미들웨어 쓰는 법 (마이페이지)
-app.get('/mypage', 로그인했니, function(요청, 응답){
-   console.log(요청.user)  // 마이페이지 접속할 때마다 유저 데이터 뜸
-   응답.render('mypage.ejs', { 사용자 : 요청.user })
-})
+app.get('/mypage', 로그인했니, function (요청, 응답) {
+   console.log(요청.user);   // 마이페이지 접속할 때마다 유저 데이터 뜸
+   응답.render('mypage.ejs', { 사용자: 요청.user })
+ }) 
 
 // 미들웨어 만드는 법 (마이페이지 접속 전 실행할 미들웨어)
 function 로그인했니(요청, 응답, next){
@@ -182,16 +155,62 @@ passport.use(new LocalStrategy({
  }));
 // 152줄 -> done(서버에러, 성공사용자DB데이터, 에러메시지)
 
+
 // 로그인 성공 -> 세션정보 만듦 -> 마이페이지 방문 시 세션검사
 // 세션 저장시키는 코드
 passport.serializeUser(function (user, done) {
-   done(null, user.id)
+   done(null, user._id)
  });
  
  passport.deserializeUser(function (아이디, done) {  // 위에있는 user.id = 아이디
-   db.collection('login').findOne({ id: 아이디 }, function (에러, 결과){
-   done(null, {결과})
- })
+   db.collection('login').findOne({ id: 아이디 }, function (에러, 결과) {
+     done(null, {결과})
+   })
+ }); 
+
+
+// 회원기능 필요하면 passport 셋팅 부분이 위에 있어야 함
+// 회원가입
+app.post('/register', function(요청, 응답){
+   db.collection('login').insertOne( {id : 요청.body.id, pw : 요청.body.pw}, function(에러, 결과){
+      응답.redirect('/')
+   }) 
+});
+
+
+ // 회원기능 개발하던 곳에 있어야 함(안 그럼 _id를 못 찾는다고 에러 남)
+ // /add로 요청처리(글업로드)할 때  작성자도 추가하자(요청.user : 현재 로그인한 사람의 정보가 들어있음)
+ app.post('/add', 로그인했니,function(요청, 응답){
+   db.collection('counter').findOne({ name : '게시물갯수'}, function(에러, 결과){
+      
+      var 총게시물갯수 = 결과.totalPost;
+   
+      var 저장할거 = { _id : 총게시물갯수 + 1, 작성자 : 요청.user._id, 제목 : 요청.body.title, 날짜 : 요청.body.date }
+
+   db.collection('post').insertOne(저장할거, function(에러, 결과){
+   // counter라는 콜렉션에 있는 totalpost 항목도 1 증가시켜야 함(수정)
+   db.collection('counter').updateOne({name : '게시물갯수'}, { $inc : {totalPost:1} }, function(에러, 결과){
+      if(에러){return console.log(에러)}
+      응답.send('전송완료');
+   })
+   })
+   })
+})
+
+
+app.delete('/delete', function(요청, 응답){
+   console.log(요청.body)
+   요청.body._id = parseInt(요청.body._id);
+
+// 실제 로그인 중인 유저의 _id와 글에 저장된 유저의 _id가 일치하면 삭제해줘
+   var 삭제할데이터 = { _id : 요청.body._id, 작성자 : 요청.user._id }
+
+   // 요청.body에 담긴 게시물 번호에 따라 DB에서 게시물 삭제
+   db.collection('post').deleteOne(삭제할데이터, function(에러, 결과){
+      console.log('삭제완료');
+      if(에러){console.log(에러)}
+      응답.status(200).send({ message : '성공했습니다'});
+   })
 });
 
 
@@ -200,7 +219,7 @@ app.get('/search', (요청, 응답) => {
    var 검색조건 = [
       {
         $search: {
-          index: 'titleSearch',
+          index: 'titleSearch',  // 내가 만든 인덱스명
           text: {
             query: 요청.query.value,  // 검색어 입력하는 항목
             path: '제목'  // 제목날짜 둘다 찾고 싶으면 ['제목', '날짜']
@@ -214,4 +233,3 @@ app.get('/search', (요청, 응답) => {
       응답.render('search.ejs', {posts : 결과})  // post라는 이름으로 결과 보내기
    })
 })
-// text index 문제점: 띄어쓰기 기준으로 단어 저장함;;
