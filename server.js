@@ -159,7 +159,7 @@ passport.use(new LocalStrategy({
 // 로그인 성공 -> 세션정보 만듦 -> 마이페이지 방문 시 세션검사
 // 세션 저장시키는 코드
 passport.serializeUser(function (user, done) {
-   done(null, user._id)
+   done(null, user.id)
  });
  
  passport.deserializeUser(function (아이디, done) {  // 위에있는 user.id = 아이디
@@ -191,6 +191,7 @@ app.post('/register', function(요청, 응답){
    // counter라는 콜렉션에 있는 totalpost 항목도 1 증가시켜야 함(수정)
    db.collection('counter').updateOne({name : '게시물갯수'}, { $inc : {totalPost:1} }, function(에러, 결과){
       if(에러){return console.log(에러)}
+      console.log(저장할거)
       응답.send('전송완료');
    })
    })

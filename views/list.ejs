@@ -36,7 +36,7 @@
       <h4><%= posts[i].제목 %></h4>
       <p><%= posts[i].날짜 %></p>
       <button class="btn btn-danger delete" data-id="<%= posts[i]._id %>">삭제</button>
-      <!-- data-id 속성에 _id를 숨겨주세요~ -->
+      <!-- html태그에 유저는 볼 수 없게 몰래 정보 숨기기 가능 -> data-작명="값" -->
     </li>
     <% } %>
   </ul>
