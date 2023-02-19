@@ -55,14 +55,6 @@ app.listen(8080, function(){
    console.log('listening on 8080')
 });
 
-app.get('/pet', function(요청, 응답){
-   응답.send('펫용품 할 수 있는 페이지입니다.');
-});
-
-app.get('/beauty', function(요청, 응답){
-   응답.send('뷰티용품 할 수 있는 페이지입니다.');
-});
-
 app.get('/', function(요청, 응답) { 
    응답.render('index.ejs');
  });
@@ -180,12 +172,12 @@ app.post('/register', function(요청, 응답){
 
  // 회원기능 개발하던 곳에 있어야 함(안 그럼 _id를 못 찾는다고 에러 남)
  // /add로 요청처리(글업로드)할 때  작성자도 추가하자(요청.user : 현재 로그인한 사람의 정보가 들어있음)
- app.post('/add', 로그인했니,function(요청, 응답){
+ app.post('/add', function(요청, 응답){
    db.collection('counter').findOne({ name : '게시물갯수'}, function(에러, 결과){
       
       var 총게시물갯수 = 결과.totalPost;
    
-      var 저장할거 = { _id : 총게시물갯수 + 1, 작성자 : 요청.user._id, 제목 : 요청.body.title, 날짜 : 요청.body.date }
+      var 저장할거 = { _id : 총게시물갯수 + 1, 작성자 : 요청.user.결과._id, 제목 : 요청.body.title, 날짜 : 요청.body.date }
 
    db.collection('post').insertOne(저장할거, function(에러, 결과){
    // counter라는 콜렉션에 있는 totalpost 항목도 1 증가시켜야 함(수정)
@@ -199,18 +191,29 @@ app.post('/register', function(요청, 응답){
 })
 
 
-app.delete('/delete', function(요청, 응답){
-   console.log(요청.body)
+// app.delete('/delete', function(요청, 응답){
+//    console.log(요청.body)
+//    요청.body._id = parseInt(요청.body._id);
+
+// // 실제 로그인 중인 유저의 _id와 글에 저장된 유저의 _id가 일치하면 삭제해줘
+//    var 삭제할데이터 = { _id : 요청.body._id, 작성자 : 요청.user._id }
+
+//    // 요청.body에 담긴 게시물 번호에 따라 DB에서 게시물 삭제
+//    db.collection('post').deleteOne(삭제할데이터, function(에러, 결과){
+//       console.log('삭제완료');
+//       if(에러){console.log(에러)}
+//       응답.status(200).send({ message : '성공했습니다'});
+//    })
+// });
+
+
+app.delete('/delete', function (요청, 응답) {
    요청.body._id = parseInt(요청.body._id);
-
-// 실제 로그인 중인 유저의 _id와 글에 저장된 유저의 _id가 일치하면 삭제해줘
-   var 삭제할데이터 = { _id : 요청.body._id, 작성자 : 요청.user._id }
-
-   // 요청.body에 담긴 게시물 번호에 따라 DB에서 게시물 삭제
-   db.collection('post').deleteOne(삭제할데이터, function(에러, 결과){
-      console.log('삭제완료');
-      if(에러){console.log(에러)}
-      응답.status(200).send({ message : '성공했습니다'});
+   //요청.body에 담겨온 게시물번호를 가진 글을 db에서 찾아서 삭제해주세요
+   db.collection('post').deleteOne({_id : 요청.body._id, 작성자 : 요청.user.결과._id }, function (에러, 결과) {
+     console.log('삭제완료');
+     console.log('에러',에러)
+     응답.status(200).send({ message: '성공했습니다' });
    })
 });
 
