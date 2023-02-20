@@ -13,10 +13,12 @@ const MongoClient = require('mongodb').MongoClient;
 const methodOverride = require('method-override')
 app.use(methodOverride('_method'))
 
+// 로그인, 로그인 검증, 세션생성 라이브러리
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const session = require('express-session');
 
+// app.use -> 요청과 응답 사이에 이런 걸 적용하고 싶어요(미들웨어)
 app.use(session({secret : '비밀코드', resave : true, saveUninitialized: false}));
 app.use(passport.initialize());
 app.use(passport.session()); 
@@ -29,6 +31,7 @@ app.set('view engine', 'ejs');
 
 // static 파일을 보관하기 위해 public 폴더를 쓸 거임
 app.use('/public', express.static('public'));
+
 
 
 // 환경변수
@@ -209,7 +212,8 @@ app.post('/register', function(요청, 응답){
 
 app.delete('/delete', function (요청, 응답) {
    요청.body._id = parseInt(요청.body._id);
-   //요청.body에 담겨온 게시물번호를 가진 글을 db에서 찾아서 삭제해주세요
+   // 요청.body에 담겨온 게시물번호를 가진 글을 db에서 찾아서 삭제해주세요
+   // 아이디가 요거인 거, 작성자가 요거인 거 둘 다 만족하면 게시글 지워줘
    db.collection('post').deleteOne({_id : 요청.body._id, 작성자 : 요청.user.결과._id }, function (에러, 결과) {
      console.log('삭제완료');
      console.log('에러',에러)
@@ -236,4 +240,45 @@ app.get('/search', (요청, 응답) => {
       console.log(결과)  // 결과 잘 출력해줌
       응답.render('search.ejs', {posts : 결과})  // post라는 이름으로 결과 보내기
    })
+})
+
+
+// 라우터 파일 첨부
+// app.use -> 미들웨어 쓰고 싶을 때 씀. 미들웨어 칸에 require(파일경로) ->shop.js 파일 첨부할게요
+// /shop 경로로 접속하면, 라우터 적용해줘~
+app.use('/shop', require('./routes/shop.js'));
+app.use('/board/sub', require('./routes/board.js'))
+
+
+
+// multer 라이브러리 불러오기
+let multer = require('multer');
+var storage = multer.diskStorage({
+
+  destination : function(req, file, cb){
+    cb(null, './public/image')
+  }, // 이미지 업로드한 거 어디로 보낼지 정하는 부분
+  filename : function(req, file, cb){
+    cb(null, file.originalname )
+  } // 저장한 이미지의 파일명 설정하는 부분
+
+});
+
+var upload = multer({storage : storage});
+
+
+// 이미지 업로드
+app.get('/upload', function(요청, 응답){
+   응답.render('upload.ejs')
+});
+
+// 업로드 요청 하면 이미지 저장해야지  이미지 업로드 시 multer를 미들웨어처럼 쓰면 됨
+app.post('/upload', upload.single('profile'), function(요청, 응답){
+   응답.send('업로드완료')
+ });
+
+ // 업로드한 이미지 보여주는 법 
+ // url파라미터 문법 -> : 기호는 파라미터(유저가 아무거나 작성할 수 있음)
+app.get('/image/:imageName', function(요청, 응답){
+   응답.sendFile(__dirname + '/public/image/' + 요청.params.imageName )
 })
