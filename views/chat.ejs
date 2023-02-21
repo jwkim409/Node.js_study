@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <link href="../public/chat.css" rel="stylesheet">
+    <title>채팅방</title>
+  </head>
+  <body>
+
+    <div class="container p-4 detail">
+
+        <div class="row">
+          <div class="col-3">
+            <ul class="list-group chat-list">
+            <% for (var i=0; i < data.length ; i++){ %>
+              <!-- data[i]._id = 채팅방의 id -->
+              <li class="list-group-item" data-id="<%= data[i]._id %>">
+                <!-- 채팅방 제목 출력 -->
+                <h6> <%= data[i].title %> </h6>
+                <!-- 채팅방 참여하는 유저의 아이디 출력 -->
+                <h6 class="text-small"> <%= data[i].member[0] %> </h6>
+                <!-- member[0]에 [0]이 붙은 이유: array에서 자료 뽑으니까 -->
+              </li>
+              <% } %>
+              <li class="list-group-item">
+                <h6>채팅방2</h6>
+                <h6 class="text-small">채팅방설명</h6>
+              </li>
+            </ul>
+          </div>
+
+           <div class="col-9 p-0">
+             <div class="chat-room">
+                <ul class="list-group chat-content">
+                  <li><span class="chat-box">채팅방1 내용</span></li>
+                  <li><span class="chat-box">채팅방1 내용</span></li>
+                  <li><span class="chat-box mine">채팅방1 내용</span></li>
+                </ul>
+              <div class="input-group">
+                <input class="form-control" id="chat-input">
+                <button class="btn btn-secondary" id="send">전송</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div> 
+  </body>
+   <script src="https://code.jquery.com/jquery-3.6.3.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+   <script>
+   // 아이디가 send인 버튼 누르면 서버로 게시물 전송해주세요
+
+   // 전송 버튼 누르면 입력한 메시지(댓글), 채팅방_id 서버로 전송
+    $('#send').click(function(){
+        var 채팅내용 = $('#chat-input').val()  // 사용자가 입력한 채팅 내용 수집
+        var 보낼거 = {
+          parent : 지금누른채팅방id,  // 부모게시물  채팅방 누르면 메시지 작성하는 방식으로 만들자
+          content : 채팅내용
+        }
+
+        $.post('./message', 보낼거).then((전송완료)=>{
+          console.log('전송완료')
+        })
+    })
+
+  // 채팅방 누르면 채팅방_id 나옴
+   var 지금누른채팅방id;
+   var eventSource;
+    $('.list-group-item').click(function(){  // 체팅방 누르면
+      지금누른채팅방id = this.dataset.id; // this = .list-group-item
+      $('.chat-content').html(''); // 채팅방 누르면 채팅 비워줘
+
+      // 채팅방 누를 때마다 소통 채널 입장... 그럼 안 되니까 소통 채널 나가기
+      if(eventSource != undefined){
+        eventSource.close()
+      }
+
+      // 유저의 데이터 수신은  new EventSource('/경로') 그리고 이벤트리스너 부착
+      // 서버랑 실시간 소통 채널 입장 완
+      eventSource = new EventSource('/message/' + 지금누른채팅방id);  // 여기 채널 입장
+      eventSource.addEventListener('test', function(e){  // 서버에서 작명한 거 써주고 콜백
+        var 가져온거 = JSON.parse(e.data) // 서버에서 보낸 데이터
+
+        // 가져온 메시지만큼 html로 표시하기
+        // array 안에 있던 하나하나의 데이터가 i(파라미터)에 꽂힘
+        가져온거.forEach(function(i){
+          $('.chat-content').append('<li><span class="chat-box">' + i.content +' </span></li>')
+        })
+      })
+    })
+
+    </script>
+  </body>
+</html>

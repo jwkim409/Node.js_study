@@ -9,6 +9,9 @@ app.use(bodyParser.urlencoded({extended: true}))
 // 몽고DB  (jwkim409  qwerty123)
 const MongoClient = require('mongodb').MongoClient;
 
+// ObjectId 쓰고 싶으면(채팅방 개설 시 사용함)
+const {ObjectId} = require('mongodb')
+
 // method-override 라이브러리
 const methodOverride = require('method-override')
 app.use(methodOverride('_method'))
@@ -282,3 +285,78 @@ app.post('/upload', upload.single('profile'), function(요청, 응답){
 app.get('/image/:imageName', function(요청, 응답){
    응답.sendFile(__dirname + '/public/image/' + 요청.params.imageName )
 })
+
+
+
+// 채팅기능 == 댓글기능(+실시간성)
+
+// list페이지 글 옆의 버튼을 누르면 채팅방 게시물을 발행
+ app.post('/chatroom', 로그인했니, function(요청, 응답){
+
+   var 채팅정보 = {
+      title : '무슨무슨채팅방',
+      member : [ObjectId(요청.body.채팅당한사람id), 요청.user.결과._id],  // 채팅 당한 유저의 _id, 채팅 건 유저의 _id
+      date : new Date()  // 현재 날짜 출력됨
+   }
+
+   // db에 있는 chatroom 콜렉션에 저장할 거고, 게시물 하나 추가할 거 / 콜백함수 대신 .then 사용 가능
+   db.collection('chatroom').insertOne(채팅정보).then((결과)=>{
+      응답.send('성공')
+   })
+ })
+
+// 유저가 /chat으로 접속하면 chat.ejs 파일을 보여줘
+ app.get('/chat', 로그인했니, function(요청, 응답){
+
+   db.collection('chatroom').find({member : 요청.user.결과._id}).toArray().then((결과)=>{  // 채팅정보 member가 array 형태로 되어있으니까 toArray 
+      응답.render('chat.ejs', { data : 결과 })  // db 찾은 결과를 ejs파일에 data라는 변수로 보내주면 좋을 듯
+   })
+ });
+
+
+// (메시지) 데이터 받았으니 DB에 저장
+ app.post('/message', 로그인했니, function(요청, 응답){
+
+   var 저장할거 = {
+      parent : 요청.body.parent,
+      content : 요청.body.content,
+      userid : 요청.user.결과._id,  // 메시지 발행한 유저_id
+      date : new Date()
+   }
+
+   db.collection('message').insertOne(저장할거).then((결과)=>{
+      console.log(결과)
+      응답.send(결과)
+   })
+ })
+
+
+ // 유저와 실시간 소통채널 열기
+ app.get('/message/:id', 로그인했니, function(요청, 응답){  // 파라미터 씀
+
+  응답.writeHead(200, {
+    "Connection": "keep-alive",
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache"
+  });
+
+  // 유저에게 데이터 전송은 event: 보낼데이터이름\n  data: 보낼데이터\n\n
+  db.collection('message').find({ parent: 요청.params.id }).toArray()
+  .then((결과)=>{
+  응답.write('event: test\n');
+  응답.write('data: '+ JSON.stringify(결과) +'\n\n');
+   })
+
+// 메시지 전송버튼 누르면 html에 보이게
+// Change Stream
+   const 찾을문서 = [
+      { $match: { 'fullDocument.parent' : 요청.params.id } }  // 이것만 감시해줘
+  ];
+  const changeStream = db.collection('message').watch(찾을문서);
+  changeStream.on('change', (result) => {
+   응답.write('event: test\n');
+   응답.write('data: '+ JSON.stringify([result.fullDocument]) +'\n\n');
+      // console.log(result.fullDocument);  // 추가된 document만 출력해보려면
+  });
+
+});
