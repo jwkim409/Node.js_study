@@ -21,6 +21,11 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const session = require('express-session');
 
+// socket.io 셋팅
+const http = require('http').createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(http);
+
 // app.use -> 요청과 응답 사이에 이런 걸 적용하고 싶어요(미들웨어)
 app.use(session({secret : '비밀코드', resave : true, saveUninitialized: false}));
 app.use(passport.initialize());
@@ -34,7 +39,6 @@ app.set('view engine', 'ejs');
 
 // static 파일을 보관하기 위해 public 폴더를 쓸 거임
 app.use('/public', express.static('public'));
-
 
 
 // 환경변수
@@ -57,7 +61,7 @@ var db;
  
  
 
-app.listen(8080, function(){  
+http.listen(8080, function(){  
    console.log('listening on 8080')
 });
 
@@ -347,7 +351,6 @@ app.get('/image/:imageName', function(요청, 응답){
   응답.write('data: '+ JSON.stringify(결과) +'\n\n');
    })
 
-// 메시지 전송버튼 누르면 html에 보이게
 // Change Stream
    const 찾을문서 = [
       { $match: { 'fullDocument.parent' : 요청.params.id } }  // 이것만 감시해줘
@@ -358,5 +361,30 @@ app.get('/image/:imageName', function(요청, 응답){
    응답.write('data: '+ JSON.stringify([result.fullDocument]) +'\n\n');
       // console.log(result.fullDocument);  // 추가된 document만 출력해보려면
   });
-
 });
+
+// 소켓
+app.get('/socket', function(요청, 응답){
+   응답.render('socket.ejs')
+})
+
+
+   io.on('connection', function(socket){
+   // 채팅방 만들고 입장  socket.join(방이름)
+      socket.on('joinroom', function(data){
+        socket.join("room1");
+      });
+   // room1에 들어간 유저에게만 전송됨    
+      socket.on('room1-send', function(data){
+        io.to("room1").emit('broadcast', data);
+      });
+    });
+
+
+// // 서버가 실시간 메시지 데이터 수신 -> (파라미터 적고)socket.on(작명, 콜백함수)
+//    // 누가 'user-send'라는 이름으로 메시지 보내면 내부 코드 실행해줘
+//    // 서버 -> 유저 메시지 전송  io.emit()
+//    socket.on('user-send', function(data){  // 유저가 메시지 보내면
+//       io.emit('broadcast', data)  // 모든 유저에게 메시지 보내줌(broadcast 한다)
+//       io.to(socket.id).emit('broadcast', data)  // 서버-유저 1명간 단독 소통(나와의 채팅)
+//    })
